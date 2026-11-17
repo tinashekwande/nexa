@@ -1,21 +1,21 @@
 # Ubuntu Line
 
-SMS AI for feature phones, built with Flask, Twilio-compatible SMS webhooks, SQLite, and the Anthropic Messages API. Canned commands work without an LLM key; free-form questions are cached by language and normalized text.
+SMS AI for feature phones, built with Flask, Twilio-compatible SMS webhooks, SQLite, and the Google Gemini API. Canned commands work without an LLM key; free-form questions are cached by language and normalized text.
 
 ## Setup
 
-Requires Python 3.10+ and an Anthropic API key for AI answers.
+Requires Python 3.10+ and a Gemini API key (free from aistudio.google.com) for AI answers.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install Flask
-export ANTHROPIC_API_KEY="your-key"
-export LLM_MODEL="claude-haiku-5-5"
+export GEMINI_API_KEY="your-key"
+export LLM_MODEL="gemini-3.5-flash-lite"
 python app.py
 ```
 
-Open `http://127.0.0.1:5000` for the phone simulator and live usage log. SQLite data is stored in `ubuntu_line.db` beside `app.py`; set `DB_PATH` to change it. The model defaults to `claude-haiku-5-5` and can be overridden with `LLM_MODEL`.
+Open `http://127.0.0.1:5000` for the phone simulator and live usage log. SQLite data is stored in `ubuntu_line.db` beside `app.py`; set `DB_PATH` to change it. The model defaults to `gemini-3.5-flash-lite` and can be overridden with `LLM_MODEL`.
 
 ## Test the six SMS scenarios
 

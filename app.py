@@ -15,8 +15,8 @@ from content import LANGUAGES, TEXT
 
 app = Flask(__name__)
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).with_name("ubuntu_line.db")))
-MODEL = os.environ.get("LLM_MODEL", "claude-haiku-5-5")
-ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+MODEL = os.environ.get("LLM_MODEL", "gemini-3.5-flash-lite")
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 LANG_MENU = "1 English 2 isiXhosa 3 isiZulu 4 Afrikaans"
 LANG_CODES = {"1": "en", "2": "xh", "3": "zu", "4": "af"}
 
@@ -56,7 +56,7 @@ def cached_answer(question, lang):
 
 
 def ask_llm(phone, question, lang):
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return TEXT[lang]["unavailable"], 0
 
@@ -64,30 +64,30 @@ def ask_llm(phone, question, lang):
         history = conn.execute(
             "SELECT body, reply FROM msgs WHERE phone=? ORDER BY rowid DESC LIMIT 2", (phone,)
         ).fetchall()
-    messages = []
+    contents = []
     for row in reversed(history):
-        messages.extend(({"role": "user", "content": row["body"]},
-                         {"role": "assistant", "content": row["reply"]}))
-    messages.append({"role": "user", "content": question})
+        contents.extend(({"role": "user", "parts": [{"text": row["body"]}]},
+                         {"role": "model", "parts": [{"text": row["reply"]}]}))
+    contents.append({"role": "user", "parts": [{"text": question}]})
     payload = json.dumps({
-        "model": MODEL,
-        "max_tokens": 120,
-        "system": f"SMS assistant, Africa. Reply in {LANGUAGES[lang]}, plain text, max 300 chars. Emergencies 10177.",
-        "messages": messages,
+        "systemInstruction": {"parts": [{"text":
+            f"SMS assistant, Africa. Reply in {LANGUAGES[lang]}, plain text, max 300 chars. Emergencies 10177."}]},
+        "contents": contents,
+        "generationConfig": {"maxOutputTokens": 120, "temperature": 0.3},
     }).encode()
-    req = urllib.request.Request(ANTHROPIC_URL, data=payload, headers={
-        "content-type": "application/json", "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
+    req = urllib.request.Request(GEMINI_URL.format(model=MODEL), data=payload, headers={
+        "content-type": "application/json", "x-goog-api-key": api_key,
     })
     try:
         with urllib.request.urlopen(req, timeout=8) as response:  # Twilio webhooks time out at 15s
             data = json.loads(response.read())
-        answer = "".join(block.get("text", "") for block in data.get("content", []))
-        usage = data.get("usage", {})
-        tokens = int(usage.get("input_tokens", 0)) + int(usage.get("output_tokens", 0))
+        parts = data["candidates"][0]["content"].get("parts", [])
+        answer = "".join(part.get("text", "") for part in parts)
+        # totalTokenCount includes prompt, reply and any thinking tokens.
+        tokens = int(data.get("usageMetadata", {}).get("totalTokenCount", 0))
         return clean_sms(answer) or TEXT[lang]["unavailable"], tokens
-    except (urllib.error.URLError, TimeoutError, ValueError, KeyError):
-        app.logger.exception("Anthropic request failed")
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError):
+        app.logger.exception("Gemini request failed")
         return TEXT[lang]["unavailable"], 0
 
 

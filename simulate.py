@@ -12,7 +12,7 @@ import app as service
 client = service.app.test_client()
 
 # Without an API key, stub the LLM so the cache path is still tested.
-if not os.environ.get("ANTHROPIC_API_KEY"):
+if not os.environ.get("GEMINI_API_KEY"):
     service.ask_llm = lambda phone, q, lang: ("Visit your nearest labour centre.", 42)
 
 def send(phone, body):
