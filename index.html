@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ubuntu Line</title>
+<style>
+:root{font:16px system-ui,sans-serif;color:#17221d;background:#f1f5f2}*{box-sizing:border-box}body{margin:0}header{background:#14583c;color:white;padding:18px 5vw}header h1{margin:0;font-size:1.45rem}header p{margin:4px 0 0;color:#d4eadc}.layout{display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:24px;padding:24px 5vw}.card,.tile{background:white;border:1px solid #dce6df;border-radius:14px;padding:20px;box-shadow:0 3px 12px #203b2910}.phone{max-width:320px;margin:auto;background:#202923;border-radius:24px;padding:13px}.screen{background:#d8e6d3;border-radius:14px;min-height:330px;padding:14px;display:flex;flex-direction:column}.brand{font-weight:700;border-bottom:1px solid #aebba9;padding-bottom:8px}.thread{flex:1;overflow:auto;max-height:270px;padding:8px 0}.bubble{max-width:90%;padding:9px 11px;margin:6px 0;border-radius:10px;background:white;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem}.bubble.out{margin-left:auto;background:#c4e6c6}.send{display:flex;gap:6px;margin-top:8px}.send input{min-width:0;flex:1}.send button,button{background:#17633f;color:#fff;border:0;border-radius:7px;padding:10px 13px;cursor:pointer}input{padding:10px;border:1px solid #9aab9e;border-radius:7px}.tiles{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:12px;margin-bottom:16px}.tile strong{display:block;font-size:1.7rem;color:#14583c}.tile span{color:#58685d;font-size:.9rem}.log{max-height:65vh;overflow:auto}.entry{padding:12px 0;border-bottom:1px solid #e5ece7}.entry small{color:#68776c}.entry p{margin:5px 0;white-space:pre-wrap;overflow-wrap:anywhere}.error{color:#a12727}@media(max-width:760px){.layout{grid-template-columns:1fr;padding:16px}.log{max-height:none}}
+</style>
+</head>
+<body>
+<header><h1>Ubuntu Line</h1><p>SMS AI for feature phones</p></header>
+<main class="layout">
+<section class="card"><h2>Feature-phone simulator</h2><p>Send a text to try the SMS flow.</p><div class="phone"><div class="screen"><div class="brand">Ubuntu Line SMS</div><div id="thread" class="thread"></div><form class="send" id="form"><input id="body" maxlength="306" placeholder="Type an SMS" autocomplete="off" required><button>Send</button></form></div></div></section>
+<section><div class="tiles"><div class="tile"><strong id="tokens">0</strong><span>Total LLM tokens</span></div><div class="tile"><strong id="zero">0%</strong><span>Zero-token replies</span></div></div><div class="card"><h2>Live message log</h2><div id="log" class="log">Loading...</div></div></section>
+</main>
+<script>
+const thread=document.querySelector('#thread');
+document.querySelector('#form').addEventListener('submit',async e=>{e.preventDefault();const input=document.querySelector('#body'),body=input.value.trim();if(!body)return;thread.insertAdjacentHTML('beforeend',`<div class="bubble">${safe(body)}</div>`);input.value='';try{const r=await fetch('/sim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:'simulator',body})});const d=await r.json();thread.insertAdjacentHTML('beforeend',`<div class="bubble out">${safe(d.reply)}</div>`);thread.scrollTop=thread.scrollHeight;refresh()}catch{thread.insertAdjacentHTML('beforeend','<div class="error">Could not reach server.</div>')}});
+function safe(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+async function refresh(){try{const d=await(await fetch('/log')).json();document.querySelector('#tokens').textContent=d.total_tokens;document.querySelector('#zero').textContent=d.zero_percent+'%';document.querySelector('#log').innerHTML=d.messages.map(m=>`<div class="entry"><small>${safe(m.ts)} | ${safe(m.phone)} | ${safe(m.route)} | ${m.tokens} tokens</small><p><b>IN:</b> ${safe(m.body)}</p><p><b>OUT:</b> ${safe(m.reply)}</p></div>`).join('')||'No messages yet.'}catch{}}
+refresh();setInterval(refresh,2000);
+</script>
+</body>
+</html>
