@@ -11,8 +11,8 @@ import app as service
 
 client = service.app.test_client()
 
-# Without an API key, stub the LLM so the cache path is still tested.
-if not os.environ.get("GEMINI_API_KEY"):
+# Always stub the LLM in tests: no network, no tokens spent.
+if True:
     service.ask_llm = lambda phone, q, lang: ("Visit your nearest labour centre.", 42)
 
 def send(phone, body):
@@ -61,4 +61,7 @@ try:
     assert at_sent and "1 English" in at_sent[0][1]
     print("simulate.py: all 9 scenarios passed")
 finally:
-    os.unlink(path)
+    try:
+        os.unlink(path)
+    except OSError:
+        pass  # Windows may still hold the file open

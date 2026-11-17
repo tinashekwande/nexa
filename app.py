@@ -90,7 +90,7 @@ def ask_llm(phone, question, lang):
         "content-type": "application/json", "x-goog-api-key": api_key,
     })
     try:
-        with urllib.request.urlopen(req, timeout=8) as response:  # Twilio webhooks time out at 15s
+        with urllib.request.urlopen(req, timeout=int(os.environ.get("LLM_TIMEOUT", 25))) as response:
             data = json.loads(response.read())
         parts = data["candidates"][0]["content"].get("parts", [])
         answer = "".join(part.get("text", "") for part in parts)
