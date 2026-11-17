@@ -35,6 +35,8 @@ The simulator uses a temporary database and checks first-contact language select
 
 ## Real phone number (SA SIM via Android phone)
 
+**Quick way:** fill in `.env`, then run `powershell -ExecutionPolicy Bypass -File setup_gateway.ps1 -TestNumber +27XXXXXXXXX`. It runs the tests, starts the app and ngrok, and registers the webhook. Manual steps below.
+
 Uses the free **SMS Gateway for Android** app (sms-gate.app) so any normal South African SIM becomes the Ubuntu Line number.
 
 1. Install the app on a spare Android phone with an SA SIM (with SMS bundle). Turn on **Cloud Server**; copy the username/password from the Home tab into `.env` as `SMSGATE_USER` / `SMSGATE_PASS`.
