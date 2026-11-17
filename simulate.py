@@ -52,6 +52,13 @@ try:
     assert r.status_code == 200
     import time; time.sleep(0.5)
     assert sent and "1 English" in sent[0][1]
-    print("simulate.py: all 8 scenarios passed")
+    # 9. Africa's Talking inbox callback accepts a received SMS.
+    at_sent = []
+    service.send_via_at = lambda phone, text, link_id=None: at_sent.append((phone, text))
+    r = client.post("/at-sms", data={"from": "+27003", "text": "hi", "to": "12345"})
+    assert r.status_code == 200
+    time.sleep(0.5)
+    assert at_sent and "1 English" in at_sent[0][1]
+    print("simulate.py: all 9 scenarios passed")
 finally:
     os.unlink(path)

@@ -4,6 +4,7 @@ import os
 import re
 import threading
 import base64
+import urllib.parse
 import sqlite3
 import urllib.error
 import urllib.request
@@ -240,6 +241,42 @@ def sms_gate():
             send_via_gateway(phone, reply)
     threading.Thread(target=work, daemon=True).start()
     return jsonify(ok=True)
+
+
+# --- Africa's Talking two-way SMS (sandbox or live shortcode) ---
+# Set AT_USERNAME=sandbox to use the free simulator at simulator.africastalking.com.
+def send_via_at(phone, text, link_id=None):
+    user, key = os.environ.get("AT_USERNAME"), os.environ.get("AT_API_KEY")
+    if not (user and key):
+        app.logger.error("AT_USERNAME/AT_API_KEY not set; reply not sent")
+        return
+    host = "api.sandbox.africastalking.com" if user == "sandbox" else "api.africastalking.com"
+    fields = {"username": user, "to": phone, "message": text}
+    if os.environ.get("AT_SHORTCODE"):
+        fields["from"] = os.environ["AT_SHORTCODE"]
+    if link_id:
+        fields["linkId"] = link_id
+    req = urllib.request.Request(f"https://{host}/version1/messaging",
+                                 data=urllib.parse.urlencode(fields).encode(),
+                                 headers={"apiKey": key, "Accept": "application/json",
+                                          "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        urllib.request.urlopen(req, timeout=15).read()
+    except (urllib.error.URLError, TimeoutError):
+        app.logger.exception("Africa's Talking send failed")
+
+
+@app.post("/at-sms")
+def at_sms():
+    phone, body = request.form.get("from", "unknown"), request.form.get("text", "")
+    link_id = request.form.get("linkId")
+
+    def work():
+        reply = handle_sms(phone, body)
+        if reply:
+            send_via_at(phone, reply, link_id)
+    threading.Thread(target=work, daemon=True).start()
+    return "", 200
 
 
 def mask(phone):

@@ -46,3 +46,10 @@ curl -X POST -u USER:PASS -H "Content-Type: application/json" \
   https://api.sms-gate.app/3rdparty/v1/webhooks
 ```
 4. SMS that phone's number from any phone. The reply comes back as a normal SMS.
+
+## Africa's Talking (sandbox or live shortcode)
+
+1. In `.env` set `AT_USERNAME` (`sandbox` for testing), `AT_API_KEY`, and `AT_SHORTCODE` (your 2-way shortcode).
+2. Run `python app.py` and `ngrok http 5000`.
+3. In the Africa's Talking dashboard, set the SMS **Inbox callback URL** to `https://YOUR-NGROK-DOMAIN/at-sms`.
+4. Sandbox: create a free shortcode, open the simulator, and SMS it. Live: SMS the shortcode from any phone.
