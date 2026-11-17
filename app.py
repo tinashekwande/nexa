@@ -13,6 +13,14 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from content import LANGUAGES, TEXT
 
+# Load KEY=value lines from .env (gitignored) so secrets never go in code.
+_env = Path(__file__).with_name(".env")
+if _env.exists():
+    for _line in _env.read_text().splitlines():
+        if "=" in _line and not _line.lstrip().startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip().strip('"'))
+
 app = Flask(__name__)
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).with_name("ubuntu_line.db")))
 MODEL = os.environ.get("LLM_MODEL", "gemini-3.5-flash-lite")

@@ -10,8 +10,7 @@ Requires Python 3.10+ and a Gemini API key (free from aistudio.google.com) for A
 python -m venv .venv
 source .venv/bin/activate
 pip install Flask
-export GEMINI_API_KEY="your-key"
-export LLM_MODEL="gemini-3.5-flash-lite"
+cp .env.example .env   # then paste your Gemini key into .env
 python app.py
 ```
 
