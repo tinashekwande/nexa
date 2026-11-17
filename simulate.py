@@ -45,6 +45,13 @@ try:
     send("+27001", "STOP")
     assert send("+27001", "hello") == ""
     assert "Welcome" in send("+27001", "START")
-    print("simulate.py: all 7 scenarios passed")
+    # 8. SMS-gateway webhook accepts a received SMS.
+    sent = []
+    service.send_via_gateway = lambda phone, text: sent.append((phone, text))
+    r = client.post("/sms-gate", json={"event": "sms:received", "payload": {"phoneNumber": "+27002", "message": "hi"}})
+    assert r.status_code == 200
+    import time; time.sleep(0.5)
+    assert sent and "1 English" in sent[0][1]
+    print("simulate.py: all 8 scenarios passed")
 finally:
     os.unlink(path)

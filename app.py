@@ -2,6 +2,8 @@ import hashlib
 import json
 import os
 import re
+import threading
+import base64
 import sqlite3
 import urllib.error
 import urllib.request
@@ -201,6 +203,43 @@ def simulate():
     phone = data.get("phone", "simulator")
     body = data.get("body", "")
     return jsonify(reply=handle_sms(phone, body))
+
+
+# --- Real phone number via "SMS Gateway for Android" (sms-gate.app) ---
+# An Android phone with a normal SA SIM receives the SMS, posts it here,
+# and we send the reply back out through that same phone.
+SMSGATE_URL = os.environ.get("SMSGATE_URL", "https://api.sms-gate.app/3rdparty/v1")
+
+
+def send_via_gateway(phone, text):
+    user, pwd = os.environ.get("SMSGATE_USER"), os.environ.get("SMSGATE_PASS")
+    if not (user and pwd):
+        app.logger.error("SMSGATE_USER/SMSGATE_PASS not set; reply not sent")
+        return
+    auth = base64.b64encode(f"{user}:{pwd}".encode()).decode()
+    req = urllib.request.Request(SMSGATE_URL + "/messages", data=json.dumps({
+        "textMessage": {"text": text}, "phoneNumbers": [phone],
+    }).encode(), headers={"content-type": "application/json", "authorization": "Basic " + auth})
+    try:
+        urllib.request.urlopen(req, timeout=15).read()
+    except (urllib.error.URLError, TimeoutError):
+        app.logger.exception("SMS gateway send failed")
+
+
+@app.post("/sms-gate")
+def sms_gate():
+    data = request.get_json(silent=True) or {}
+    if data.get("event") != "sms:received":
+        return jsonify(ok=True)
+    payload = data.get("payload", {})
+    phone, body = payload.get("phoneNumber", "unknown"), payload.get("message", "")
+
+    def work():  # reply in the background so the phone's webhook call returns fast
+        reply = handle_sms(phone, body)
+        if reply:
+            send_via_gateway(phone, reply)
+    threading.Thread(target=work, daemon=True).start()
+    return jsonify(ok=True)
 
 
 def mask(phone):

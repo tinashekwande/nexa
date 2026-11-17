@@ -32,3 +32,17 @@ The simulator uses a temporary database and checks first-contact language select
 4. Send an SMS to the Twilio number. The `/incoming` route reads Twilio's `From` and `Body` fields and returns TwiML.
 
 `POST /sim` accepts JSON `{ "phone": "+27...", "body": "..." }` or form fields `phone` and `body`, and returns `{ "reply": "..." }`. `GET /log` returns recent exchanges and token/zero-token totals for the dashboard.
+
+## Real phone number (SA SIM via Android phone)
+
+Uses the free **SMS Gateway for Android** app (sms-gate.app) so any normal South African SIM becomes the Ubuntu Line number.
+
+1. Install the app on a spare Android phone with an SA SIM (with SMS bundle). Turn on **Cloud Server**; copy the username/password from the Home tab into `.env` as `SMSGATE_USER` / `SMSGATE_PASS`.
+2. Run `python app.py` and `ngrok http 5000` (webhooks must be HTTPS).
+3. Register the webhook once:
+```bash
+curl -X POST -u USER:PASS -H "Content-Type: application/json" \
+  -d '{"url":"https://YOUR-NGROK-DOMAIN/sms-gate","event":"sms:received"}' \
+  https://api.sms-gate.app/3rdparty/v1/webhooks
+```
+4. SMS that phone's number from any phone. The reply comes back as a normal SMS.
