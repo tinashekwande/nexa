@@ -80,7 +80,7 @@ def ask_llm(phone, question, lang):
         "anthropic-version": "2023-06-01",
     })
     try:
-        with urllib.request.urlopen(req, timeout=20) as response:
+        with urllib.request.urlopen(req, timeout=8) as response:  # Twilio webhooks time out at 15s
             data = json.loads(response.read())
         answer = "".join(block.get("text", "") for block in data.get("content", []))
         usage = data.get("usage", {})
@@ -129,10 +129,18 @@ def handle_sms(phone, body):
         else:
             reply = lang_menu()
     else:
-        if upper == "HELP":
+        if state == "stopped" and upper != "START":
+            return ""  # opted out: send nothing
+        if upper == "START":
+            reply = TEXT[lang]["welcome"]
+            with db() as conn:
+                conn.execute("UPDATE users SET state='ready' WHERE phone=?", (phone,))
+        elif upper == "HELP":
             reply = TEXT[lang]["help"]
         elif upper == "STOP":
             reply = TEXT[lang]["stop"]
+            with db() as conn:
+                conn.execute("UPDATE users SET state='stopped' WHERE phone=?", (phone,))
         elif state == "grant_reason":
             if body in {"1", "2", "3", "4"}:
                 reply = TEXT[lang]["grant_" + body]
@@ -174,6 +182,8 @@ def incoming():
     phone = request.form.get("From", "unknown")
     body = request.form.get("Body", "")
     reply = handle_sms(phone, body)
+    if not reply:
+        return '<?xml version="1.0" encoding="UTF-8"?><Response/>', 200, {"Content-Type": "application/xml"}
     return f'<?xml version="1.0" encoding="UTF-8"?><Response><Message>{escape(reply)}</Message></Response>', 200, {"Content-Type": "application/xml"}
 
 
@@ -185,6 +195,10 @@ def simulate():
     return jsonify(reply=handle_sms(phone, body))
 
 
+def mask(phone):
+    return phone if len(phone) < 8 else phone[:5] + "***" + phone[-3:]
+
+
 @app.get("/log")
 def log():
     init_db()
@@ -194,7 +208,7 @@ def log():
             "SELECT COALESCE(SUM(tokens),0), COALESCE(SUM(CASE WHEN tokens=0 THEN 1 ELSE 0 END),0), COUNT(*) FROM msgs"
         ).fetchone()
     return jsonify(total_tokens=total, zero_percent=round(100 * zero / count, 1) if count else 0,
-                   messages=[dict(row) for row in rows])
+                   messages=[{**dict(row), "phone": mask(row["phone"])} for row in rows])
 
 
 init_db()

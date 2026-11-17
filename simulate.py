@@ -11,6 +11,10 @@ import app as service
 
 client = service.app.test_client()
 
+# Without an API key, stub the LLM so the cache path is still tested.
+if not os.environ.get("ANTHROPIC_API_KEY"):
+    service.ask_llm = lambda phone, q, lang: ("Visit your nearest labour centre.", 42)
+
 def send(phone, body):
     response = client.post("/sim", json={"phone": phone, "body": body})
     assert response.status_code == 200, response.data
@@ -37,6 +41,10 @@ try:
         rows = conn.execute("SELECT route,tokens FROM msgs WHERE body LIKE '%FIND WORK%' OR body LIKE '%find work%' ORDER BY rowid DESC LIMIT 2").fetchall()
     assert len(rows) == 2 and rows[0]["route"] == "cache" and rows[0]["tokens"] == 0
     assert client.get("/log").status_code == 200
-    print("simulate.py: all 6 scenarios passed")
+    # 7. STOP opts out (no reply), START opts back in.
+    send("+27001", "STOP")
+    assert send("+27001", "hello") == ""
+    assert "Welcome" in send("+27001", "START")
+    print("simulate.py: all 7 scenarios passed")
 finally:
     os.unlink(path)
